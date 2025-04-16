@@ -1,5 +1,5 @@
 // HomePage.tsx
-import React, {useEffect, useState} from 'react';
+import {useEffect, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import './HomePage.css';
 
@@ -25,7 +25,6 @@ export default function HomePage() {
   const [videos, setVideos] = useState<VideoItem[]>([]);
 
   // 从 .env 中读取服务器地址（确保在项目根目录下创建 .env 文件并定义 VITE_SERVER_BACKEND）
-  // @ts-ignore
   const serverAddress = import.meta.env.VITE_SERVER_BACKEND;
 
   // 加载推荐视频列表，修改接口URL参数使用 pageNo 与 pageSize
