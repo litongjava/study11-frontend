@@ -103,8 +103,7 @@ export default function HomePage() {
 
   return (
     <div className="home-page">
-      <h1>Teach Me Anything</h1>
-
+      <h1>Show Me Anything</h1>
       {/* 生成动画区域 */}
       <div className="generate-section">
         <input
