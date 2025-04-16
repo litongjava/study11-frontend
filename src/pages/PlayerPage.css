@@ -1,0 +1,107 @@
+.player-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start; /* 靠上 */
+  padding: 40px 20px 20px;
+  background: #f0f2f5;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #333;
+}
+
+.player-header {
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.back-button {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: #1890ff;
+}
+
+.back-button:hover {
+  text-decoration: underline;
+}
+
+.video-container {
+  width: 100%;
+  max-width: 1200px;
+  margin-bottom: 20px;
+  background: #fff;
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.video-container video {
+  width: 100%;
+  height: auto;
+}
+
+.video-info {
+  width: 100%;
+  max-width: 1200px;
+  background: #fff;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.video-info h3 {
+  margin-top: 0;
+}
+
+.video-info p {
+  margin: 10px 0;
+  word-break: break-all;
+}
+
+a {
+  color: #1890ff;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ================ 移动端适配 ================ */
+@media (max-width: 600px) {
+  .player-page {
+    padding: 20px 10px;
+  }
+
+  .player-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .player-header h1 {
+    font-size: 20px;
+    margin-top: 10px;
+  }
+
+  .video-container,
+  .video-info {
+    max-width: 100%;
+    padding: 10px;
+  }
+
+  .back-button {
+    font-size: 14px;
+  }
+
+  /* 如果需要，也可以调整视频信息字体大小 */
+  .video-info p,
+  .video-info h3 {
+    font-size: 14px;
+  }
+}
