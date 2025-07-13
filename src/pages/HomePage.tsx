@@ -4,17 +4,16 @@ import {useNavigate} from 'react-router-dom';
 import './HomePage.css';
 
 // 定义接口类型，可根据返回数据结构扩展
-type VideoItem = {
+type PageItem = {
   id: string;
-  cover_url: string;
   title: string;
-  video_url: string;
+  url: string;
 };
 
 export default function HomePage() {
   const navigate = useNavigate();
   const [topic, setTopic] = useState('');
-  const [generatedVideo, setGeneratedVideo] = useState<VideoItem | null>(null);
+  const [generatedVideo, setGeneratedVideo] = useState<PageItem | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -22,7 +21,7 @@ export default function HomePage() {
   const [page, setPage] = useState(1);
   const limit = 12;
   const [total, setTotal] = useState(0);
-  const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [videos, setVideos] = useState<PageItem[]>([]);
 
   // 从 .env 中读取服务器地址（确保在项目根目录下创建 .env 文件并定义 VITE_SERVER_BACKEND）
   const serverAddress = import.meta.env.VITE_SERVER_BACKEND;
@@ -34,11 +33,10 @@ export default function HomePage() {
       .then(data => {
         if (data.code === 1 && data.ok) {
           // 根据返回的数据字段做映射：推荐接口返回字段有 id, topic, url
-          const mappedVideos: VideoItem[] = data.data.videos.map((item: any) => ({
+          const mappedVideos: PageItem[] = data.data.videos.map((item: any) => ({
             id: item.id,
-            cover_url: item.url, // 使用 url 作为封面预览
             title: item.topic,
-            video_url: item.url, // 使用同一 URL 作为视频播放地址
+            url: item.url,
           }));
           setVideos(mappedVideos);
           setTotal(data.data.total);
@@ -67,11 +65,10 @@ export default function HomePage() {
         setLoading(false);
         if (data.code === 1 && data.ok && data.data) {
           // 新接口只返回 data.url，即预览 URL
-          const newVideo: VideoItem = {
+          const newVideo: PageItem = {
             id: new Date().getTime().toString(),
-            cover_url: data.data.url,
             title: topic,
-            video_url: data.data.url,
+            url: data.data.url,
           };
           setGeneratedVideo(newVideo);
         } else {
@@ -86,10 +83,11 @@ export default function HomePage() {
   };
 
   // 点击视频后跳转到播放器页面
-  const handlePlayVideo = (video: VideoItem) => {
-    navigate(`/player/${video.id}`, {
-      state: { videoUrl: video.video_url, coverUrl: video.cover_url, title: video.title },
-    });
+  const handlePlayPage = (video: PageItem) => {
+    // navigate(`/player/${video.id}`, {
+    //   state: { videoUrl: video.video_url, coverUrl: video.cover_url, title: video.title },
+    // });
+    window.open(video.url, '_blank', 'noopener,noreferrer');
   };
 
   // 分页控制
@@ -125,13 +123,13 @@ export default function HomePage() {
           <h3>{generatedVideo.title}</h3>
           {/* 如果可行，使用 iframe 显示预览 */}
           <iframe
-            src={generatedVideo.video_url}
+            src={generatedVideo.url}
             width="160"
             height="90"
             frameBorder="0"
             title={generatedVideo.title}
           ></iframe>
-          <button onClick={() => handlePlayVideo(generatedVideo)}>去播放</button>
+          <button onClick={() => handlePlayPage(generatedVideo)}>去播放</button>
         </div>
       )}
 
@@ -139,10 +137,10 @@ export default function HomePage() {
       <h2>推荐动画</h2>
       <div className="videos-grid">
         {videos.map((video) => (
-          <div key={video.id} className="video-item" onClick={() => handlePlayVideo(video)}>
+          <div key={video.id} className="video-item" onClick={() => handlePlayPage(video)}>
             {/* 替换原来的 img 标签为 iframe 预览 */}
             <iframe
-              src={video.video_url}
+              src={video.url}
               width="160"
               height="90"
               frameBorder="0"
