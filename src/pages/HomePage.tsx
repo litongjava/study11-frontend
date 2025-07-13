@@ -1,6 +1,5 @@
 // HomePage.tsx
 import {useEffect, useState} from 'react';
-import {useNavigate} from 'react-router-dom';
 import './HomePage.css';
 
 // 定义接口类型，可根据返回数据结构扩展
@@ -11,7 +10,6 @@ type PageItem = {
 };
 
 export default function HomePage() {
-  const navigate = useNavigate();
   const [topic, setTopic] = useState('');
   const [generatedVideo, setGeneratedVideo] = useState<PageItem | null>(null);
   const [error, setError] = useState('');
