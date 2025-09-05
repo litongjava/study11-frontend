@@ -97,6 +97,12 @@ export default function PlayerPage() {
     });
   };
 
+  const shareLink = () => {
+    if (!videoInfo?.videoUrl) return;
+    copyToClipboard(videoInfo.videoUrl, 'share');
+  };
+
+
   // 倒计时和总耗时计时器
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -557,15 +563,27 @@ export default function PlayerPage() {
             <div className="title-row">
               <h1>{videoInfo.title}</h1>
 
-              {videoInfo?.videoUrl && (
-                <button
-                  className="open-new-btn"
-                  onClick={openInNewTab}
-                  title="Open in new tab"
-                >
-                  Open in new tab
-                </button>
-              )}
+              <div className="title-actions">
+                {videoInfo?.videoUrl && (
+                  <>
+                    <button
+                      className="open-new-btn"
+                      onClick={openInNewTab}
+                      title="在新标签打开"
+                    >
+                      在新标签打开
+                    </button>
+
+                    <button
+                      className="share-btn"
+                      onClick={shareLink}
+                      title="Share"
+                    >
+                      {copiedItems['share'] ? '✓ 已复制' : '分享'}
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
