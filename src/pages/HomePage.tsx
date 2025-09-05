@@ -1,162 +1,249 @@
-// HomePage.tsx
-import {useEffect, useState} from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './HomePage.css';
-
-// 定义接口类型，可根据返回数据结构扩展
-type PageItem = {
-  id: string;
-  title: string;
-  url: string;
-};
+import type { ParsedImageResponse, VideoItem } from '../type/type';
+import { UserIdConst } from '../type/UserIdConst.ts';
 
 export default function HomePage() {
-  const [topic, setTopic] = useState('');
-  const [generatedVideo, setGeneratedVideo] = useState<PageItem | null>(null);
-  const [error, setError] = useState('');
+  const navigate = useNavigate();
+  const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
-
-  // 分页参数
   const [page, setPage] = useState(1);
   const limit = 12;
   const [total, setTotal] = useState(0);
-  const [videos, setVideos] = useState<PageItem[]>([]);
+  const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [conceptText, setConceptText] = useState<string>('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('zh-CN');
+  const [selectedProvider, setSelectedProvider] = useState<string>('anthropic');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDevEnv, setIsDevEnv] = useState(false);
 
-  // 从 .env 中读取服务器地址（确保在项目根目录下创建 .env 文件并定义 VITE_SERVER_BACKEND）
-  const serverAddress = import.meta.env.VITE_SERVER_BACKEND;
-
-  // 加载推荐视频列表，修改接口URL参数使用 pageNo 与 pageSize
   useEffect(() => {
-    fetch(`${serverAddress}/v1/api/html/recommends?pageNo=${page}&pageSize=${limit}&sort_by=recent`)
-      .then(response => response.json())
-      .then(data => {
+    // 检查是否为开发环境
+    setIsDevEnv(localStorage.getItem('app.env') === 'dev');;
+    fetch(
+      import.meta.env.VITE_BACKEND_BASE_URL +
+      `/api/v1/html/recommends?pageNo=${page}&pageSize=${limit}&sort_by=recent`
+    )
+      .then((response) => response.json())
+      .then((data) => {
         if (data.code === 1 && data.ok) {
-          // 根据返回的数据字段做映射：推荐接口返回字段有 id, topic, url
-          const mappedVideos: PageItem[] = data.data.videos.map((item: any) => ({
-            id: item.id,
-            title: item.topic,
-            url: item.url,
-          }));
-          setVideos(mappedVideos);
+          setVideos(data.data.videos);
           setTotal(data.data.total);
         } else {
           console.error('获取推荐视频返回错误：', data);
         }
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('获取推荐视频失败:', err);
       });
-  }, [page, serverAddress]);
+  }, [page]);
 
-  // 调用生成接口，修改生成接口地址
-  const generateVideo = () => {
-    if (!topic.trim()) {
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  const handlePlayVideo = (video: VideoItem) => {
+    // navigate(`/player/${video.id}`, {
+    //   state: {
+    //     videoUrl: video.video_url,
+    //     coverUrl: video.cover_url,
+    //     title: video.title,
+    //   },
+    // });
+    //navigate(video.video_url)
+    window.open(video.video_url, '_blank');
+  };
+
+  const totalPages = Math.ceil(total / limit);
+  const handlePreviousPage = () => page > 1 && setPage(page - 1);
+  const handleNextPage = () => page < totalPages && setPage(page + 1);
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    if (file) {
+      setSelectedFile(file);
+      setError('');
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      const newPreview = URL.createObjectURL(file);
+      setPreviewUrl(newPreview);
+      await handleParseImage(file);
+    } else {
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      setConceptText('');
+    }
+  };
+
+  const handleParseImage = async (fileToParse: File) => {
+    setIsLoading(true);
+    setError('');
+    setConceptText('');
+
+    const formData = new FormData();
+    formData.append('file', fileToParse);
+
+    try {
+      const response = await fetch(
+        import.meta.env.VITE_BACKEND_BASE_URL + '/api/v1/file/parse',
+        { method: 'POST', body: formData }
+      );
+      const result = await response.json();
+
+      if (response.ok && result.code === 1 && result.ok && result.data) {
+        const data = result.data as ParsedImageResponse;
+        setConceptText(data.content);
+      } else {
+        throw new Error(result.msg || result.error || 'Failed to parse image.');
+      }
+    } catch (err: any) {
+      console.error('Error parsing image:', err);
+      setError(err.message || 'An unexpected error occurred during parsing.');
+      setConceptText('');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedLanguage(e.target.value);
+  };
+
+  const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedProvider(e.target.value);
+  };
+
+  const handleGenerateVideo = () => {
+    if (!conceptText.trim()) {
       setError('请输入主题');
       return;
     }
     setError('');
     setLoading(true);
 
-    const url = `${serverAddress}/v1/api/html/generate?topic=${encodeURIComponent(topic)}`;
-    fetch(url)
-      .then(res => res.json())
-      .then(data => {
-        setLoading(false);
-        if (data.code === 1 && data.ok && data.data) {
-          // 新接口只返回 data.url，即预览 URL
-          const newVideo: PageItem = {
-            id: new Date().getTime().toString(),
-            title: topic,
-            url: data.data.url,
-          };
-          setGeneratedVideo(newVideo);
-        } else {
-          setError('视频生成失败');
-        }
-      })
-      .catch(err => {
-        console.error('生成动画出错:', err);
-        setLoading(false);
-        setError('视频生成失败');
-      });
-  };
-
-  // 点击视频后跳转到播放器页面
-  const handlePlayPage = (video: PageItem) => {
-    // navigate(`/player/${video.id}`, {
-    //   state: { videoUrl: video.video_url, coverUrl: video.cover_url, title: video.title },
-    // });
-    window.open(video.url, '_blank', 'noopener,noreferrer');
-  };
-
-  // 分页控制
-  const totalPages = Math.ceil(total / limit);
-  const handlePreviousPage = () => {
-    if (page > 1) setPage(page - 1);
-  };
-  const handleNextPage = () => {
-    if (page < totalPages) setPage(page + 1);
+    navigate('/player', {
+      state: {
+        question: conceptText,
+        provider: selectedProvider,
+        voice_provider: 'openai',
+        voice_id: 'shimmer',
+        language: selectedLanguage.startsWith('zh') ? 'zh' : 'en',
+        user_id: UserIdConst.TONG_LI,
+      },
+    });
   };
 
   return (
-    <div className="home-page">
-      <h1>Show Me Anything</h1>
-      {/* 生成动画区域 */}
-      <div className="generate-section">
-        <input
-          type="text"
-          placeholder="描述想要讲解的技术概念"
-          value={topic}
-          onChange={(e) => setTopic(e.target.value)}
-        />
-        <button onClick={generateVideo} disabled={loading}>
-          {loading ? '生成中...' : '生成动画'}
+    <div className="homepage-container">
+      <h1 className="app-title">Teach Me Anything</h1>
+
+      <div className="controls-section">
+        <div className="select-group">
+          <label htmlFor="language-select">语言:</label>
+          <select
+            id="language-select"
+            value={selectedLanguage}
+            onChange={handleLanguageChange}
+          >
+            <option value="zh-CN">简体中文</option>
+            <option value="en-US">English</option>
+            <option value="es-ES">Español</option>
+          </select>
+        </div>
+
+        {isDevEnv && (
+          <div className="select-group">
+            <label htmlFor="provider-select">LLM Provider:</label>
+            <select
+              id="provider-select"
+              value={selectedProvider}
+              onChange={handleProviderChange}
+            >
+              <option value="anthropic">Anthropic Claude</option>
+              <option value="openai">OpenAI</option>
+              <option value="openrouter">OpenRouter DeepSeek</option>
+              <option value="google">Google Gemini</option>
+            </select>
+          </div>
+        )}
+
+        <div className="upload-section">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="upload-button"
+          >
+            {selectedFile ? '更换图片' : '上传图片'}
+          </button>
+          {previewUrl && (
+            <div className="image-preview">
+              <img src={previewUrl} alt="预览" />
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={handleGenerateVideo}
+          className="generate-button"
+          disabled={isLoading || loading}
+        >
+          {loading ? '正在生成...' : '生成视频'}
         </button>
       </div>
 
-      {error && <p className="error">{error}</p>}
+      <div className="concept-input-section">
+        <textarea
+          placeholder="描述想要讲解的技术概念 (或上传图片自动填充)"
+          value={conceptText}
+          onChange={(e) => setConceptText(e.target.value)}
+          rows={4}
+        />
+      </div>
 
-      {/* 生成成功后的视频卡片 */}
-      {generatedVideo && (
-        <div className="generated-card">
-          <h3>{generatedVideo.title}</h3>
-          {/* 如果可行，使用 iframe 显示预览 */}
-          <iframe
-            src={generatedVideo.url}
-            width="160"
-            height="90"
-            frameBorder="0"
-            title={generatedVideo.title}
-          ></iframe>
-          <button onClick={() => handlePlayPage(generatedVideo)}>去播放</button>
+      {isLoading && <p className="loading-message">图片解析中，请稍候...</p>}
+      {error && <p className="error-message">{error}</p>}
+
+      <div className="section-header">
+        <h2>历史视频</h2>
+        <div className="pagination-info">
+          第 {page} 页，共 {totalPages} 页
         </div>
-      )}
+      </div>
 
-      {/* 推荐动画展示 */}
-      <h2>推荐动画</h2>
       <div className="videos-grid">
         {videos.map((video) => (
-          <div key={video.id} className="video-item" onClick={() => handlePlayPage(video)}>
-            {/* 替换原来的 img 标签为 iframe 预览 */}
-            <iframe
-              src={video.url}
-              width="160"
-              height="90"
-              frameBorder="0"
-              title={video.title}
-            ></iframe>
-            <p>{video.title}</p>
+          <div
+            key={video.id}
+            className="video-item"
+            onClick={() => handlePlayVideo(video)}
+          >
+            <div className="video-thumbnail">
+              <img
+                src={video.cover_url}
+                alt={video.title}
+              />
+              <div className="play-icon">▶</div>
+            </div>
+            <p className="video-title">{video.title}</p>
           </div>
         ))}
       </div>
 
-      {/* 分页控制 */}
       <div className="pagination">
         <button onClick={handlePreviousPage} disabled={page === 1}>
           上一页
         </button>
-        <span>
-          第 {page} 页，共 {totalPages} 页
-        </span>
         <button onClick={handleNextPage} disabled={page === totalPages}>
           下一页
         </button>
